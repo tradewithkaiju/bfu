@@ -9,13 +9,6 @@ from ta.momentum import RSIIndicator
 from streamlit_autorefresh import st_autorefresh
 from binance.client import Client
 
-# Load API keys securely
-api_key = st.secrets["binance"]["api_key"]
-api_secret = st.secrets["binance"]["api_secret"]
-
-# Create Binance client
-client = Client(api_key, api_secret)
-
 # Initialize session state
 if 'scan_results' not in st.session_state:
     st.session_state.scan_results = {
@@ -70,20 +63,17 @@ def fully_fanned(df: pd.DataFrame, type_: str, periods: list) -> str:
         return 'neutral'
 
 # === BINANCE API UTILS ===
-def get_futures_symbols():
-    try:
-        exchange_info = client.futures_exchange_info()
-        symbols = [
-            s['symbol']
-            for s in exchange_info['symbols']
-            if s['contractType'] == 'PERPETUAL'
-            and s['quoteAsset'] == 'USDT'
-            and s['status'] == 'TRADING'
-        ]
-        return symbols
-    except Exception as e:
-        st.error(f"⚠️ Error fetching Binance data: {e}")
-        return []
+def get_futures_symbols(test_mode=False):
+    res = requests.get(f"{BASE_URL}/fapi/v1/exchangeInfo").json()
+    symbols = [
+        s['symbol']
+        for s in res['symbols']
+        if s['contractType'] == 'PERPETUAL'
+        and s['quoteAsset'] == 'USDT'
+        and s['status'] == 'TRADING'
+        and not s['symbol'].endswith('BUSD')
+    ]
+    return symbols[:TEST_SYMBOLS_COUNT] if test_mode else symbols
 
 def fetch_ohlcv(symbol, interval, limit=150):
     try:
